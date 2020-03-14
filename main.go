@@ -8,7 +8,7 @@ import "io/ioutil"
 import "log"
 
 func main() {
-	rawContent, err := ioutil.ReadFile("/usr/share/dict/words")
+	rawContent, err := ioutil.ReadFile("words")
 	if err != nil {
 		log.Fatal(err)
 	}
