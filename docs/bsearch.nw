@@ -1,0 +1,161 @@
+\documentclass[10pt, letter]{article}
+\usepackage{noweb}
+\usepackage{mathtools}
+\usepackage{color}
+\usepackage{listings}
+\usepackage[toc, page]{appendix}
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+\title{Binary search}
+\author{Robert J. Hansen (rob@hansen.engineering)}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=Python,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\ttfamily\footnotesize},
+  numbers=left,
+  numberstyle=\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=4
+}
+\begin{document}
+@
+\maketitle
+\tableofcontents
+\section{Assignment}
+Read and learn how binary search works.  When you understand it, implement a Golang version of the Python code presented here, with the following changes.
+
+\begin{itemize}
+\item
+Use a \texttt{for} loop to implement this without any recursion.
+\end{itemize}
+
+Once you have your code working, start reasoning about it.  Be able to answer these questions:
+
+\begin{itemize}
+\item
+Assuming a dictionary of size N words, how many steps are necessary on average to find an element?
+\item
+How many words are there in the English language?  (You'll find many different values: use the highest one you find.)
+\item
+About how many steps will it take to find a word, in the average case?
+\item
+How does our hack to avoid overflow work?  Does it really work?  Can you formally prove that it really works?
+\end{itemize}
+
+\textit{Write clear code.}  We'll be hacking this up a little later to give us some enhanced functionality.  Make sure that when you revisit this in a month that you're able to understand what you've written.
+
+
+
+\section{Introduction}
+Binary search is a bog-standard part of every programmer's toolbox.  Despite this, although many languages (C++) have support built-in for this just as many (Golang) do not.  
+
+To help explain the algorithm, I'm presenting a Python version.  You may use this to help figure out how to write your Golang implementation.
+
+\section{A Python implementation}
+
+The Python version starts off with the same boilerplate as any other Python program, followed by the binary search function, followed by a brief test case.  It's going to be presented out of order, in the interests of getting the important stuff out of the way first.
+
+\section{Binary search}
+To do a binary search we need to know the sequence to search, and in which range we think we might find the answer.  (Obviously, in the beginning for an $N$-element vector we think the range is found between indexes 0 and $N-1$, inclusive.)
+
+<<binary search function>>=
+def binary_search(words, looking_for, 
+                  low = 0, high = -1):
+<<sanity check>>
+<<degeneracy check>>
+<<determine the midpoint>>
+<<look at the midpoint>>
+<<evaluate for completion>>
+<<recurse>>
+
+@
+\section{Sanity checking}
+In the event the user called us without specifying \texttt{high}, assume it's the end of the sequence.
+
+<<sanity check>>=
+    if high < 0:
+        high = len(words) - 1
+@
+\section{Checking for Degeneracy}
+In mathematics, a \textit{degenerate form} is something so trivial it's not worth considering.  In computer science, a \textit{degenerate case} is something so trivial we can consider the algorithm to be complete.  In our case, if \texttt{low} is greater than or equal to \texttt{high} then we have either been given a zero-element range to search (in which case we won't find anything) or whoever's calling our function screwed up our parameters (likewise).
+
+<<degeneracy check>>=
+    if low >= high:
+        return -1
+@
+\section{Determining the Midpoint}
+You might think finding the midpoint of the range is as simple as adding the low index to the high index and dividing by two.  This is tempting, but also wrong.  It's a subtle thing the overwhelming majority of people get incorrect.
+
+Imagine you're searching a very large dictionary in a small range close to the end: your word is ``zygote'', your low end is ``zeal'', and your high end is ``zymurge''.  Your indexes will be very large.  Adding the two of them together \textit{may} cause an overflow condition, where your result value will be too large for your integer type and will wrap around into a negative number.  That would be a terrible thing, because you'd then try to dereference a negative index and only bad things can follow from that.
+
+So although as a matter of pure mathematics it's just $\lfloor\frac{\textrm{low} + \textrm{high}}{2}\rfloor$, we will implement it as $\textrm{low} + \lfloor\frac{\textrm{high} - \textrm{low}}{2}\rfloor$.
+
+<<determine the midpoint>>=
+    midpoint = low + ((high - low) // 2)
+@
+\section{Examining the Midpoint}
+Once we have the index of the midpoint, accessing it is child's play.
+
+<<look at the midpoint>>=
+    element = words[midpoint]
+@
+\section{Evaluating for completion}
+We have three possible cases: either \texttt{element} is the word we're searching for, it's too early in the dictionary, or too late in the dictionary.  If it's the first case, we return the value \texttt{midpoint} to show a successful lookup.
+
+<<evaluate for completion>>=
+    if element == looking_for:
+        return midpoint
+@
+\section{Recursive case}
+The two remaining cases involve whether \texttt{element} is too early in the dictionary or too late.  If it's too early, we set \texttt{low} to one more than our midpoint and repeat our search.  If it's too late, we set \texttt{high} to one less than our midpoint and repeat our search.
+
+<<recurse>>=
+    if element < looking_for:
+        return binary_search(words, looking_for, 
+                             low + 1, high)
+    else:
+        return binary_search(words, looking_for,
+                             low, high - 1)
+
+@
+<<binarysearch.py>>=
+<<boilerplate>>
+<<binary search function>>
+
+<<test suite>>
+@
+
+\section{Boilerplate}
+This is the necessary stuff for a Python 3 application.  There's nothing particularly of interest here.
+
+<<boilerplate>>=
+#!/usr/bin/env python3
+# coding: UTF-8
+
+@
+\section{Test suite}
+This is a minimal test suite to give some confidence the code works.  Do not mistake it for an exhaustive test plan.
+
+<<test suite>>=
+if __name__ == '__main__':
+    words = ["apple", "ball", "cat", "dog", "eagle",
+             "firetruck", "hula hoop", "Illinois"]
+    print(binary_search(words, "ball"))
+    print(binary_search(words, "bobcat"))
+@
+\begin{appendices}
+\section{Python code, in full}
+\lstinputlisting[language=Python]{binarysearch.py}
+\end{appendices}
+\end{document}
